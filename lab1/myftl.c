@@ -166,9 +166,9 @@ void set_rmap_ent(struct ssd *ssd, uint64_t lpn, struct ppa *ppa) {
 uint64_t ppa2pgidx(struct ppa *ppa) {
     uint64_t pgidx;
 
-    pgidx = ppa->g.ch  * DIES_PER_CH + 
-            ppa->g.die * BLKS_PER_DIE +
-            ppa->g.blk * PGS_PER_BLK + 
+    pgidx = ppa->g.ch  * DIES_PER_CH  * BLKS_PER_DIE * PGS_PER_BLK+
+            ppa->g.die * BLKS_PER_DIE * PGS_PER_BLK +
+            ppa->g.blk * PGS_PER_BLK +
             ppa->g.pg;
 
     assert(pgidx < TOTAL_PGS);
