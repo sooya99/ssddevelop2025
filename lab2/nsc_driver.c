@@ -61,9 +61,6 @@ void __attribute__((optimize("O0"))) V2FResetSync(V2FMCRegisters* dev, int way)
 {
 	*((volatile unsigned int*)&(dev->waySelection)) = way;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_Reset;
-#if 1 //jy
-	SchedulingNand();
-#endif
 	while (V2FIsControllerBusy(dev));
 }
 
@@ -80,9 +77,6 @@ void __attribute__((optimize("O0"))) V2FSetFeaturesSync(V2FMCRegisters* dev, int
 	*((volatile unsigned int*)&(dev->waySelection)) = way;
 	*((volatile unsigned int*)&(dev->userData)) = (unsigned int)payload;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_SetFeatures;
-#if 1 //jy
-	SchedulingNand();
-#endif
 	while (V2FIsControllerBusy(dev));
 }
 
@@ -101,9 +95,6 @@ void __attribute__((optimize("O0"))) V2FGetFeaturesSync(V2FMCRegisters* dev, int
 	*((volatile unsigned int*)&(dev->completionAddress)) = (unsigned int)&completion;
 #endif
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_GetFeatures;
-#if 1 //jy
-	SchedulingNand();
-#endif
 	while (V2FIsControllerBusy(dev));
 	while (!(completion & 1));
 	*feature0x01 = buffer[0];
@@ -117,9 +108,6 @@ void __attribute__((optimize("O0"))) V2FReadPageTriggerAsync(V2FMCRegisters* dev
 	*((volatile unsigned int*)&(dev->waySelection)) = way;
 	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTrigger;
-#if 1 //jy
-	SchedulingNand();
-#endif
 }
 
 void __attribute__((optimize("O0"))) V2FReadPageTransferAsync(V2FMCRegisters* dev, int way, void* pageDataBuffer, void* spareDataBuffer, unsigned int* errorInformation, unsigned int* completion, unsigned int rowAddress)
@@ -139,9 +127,6 @@ void __attribute__((optimize("O0"))) V2FReadPageTransferAsync(V2FMCRegisters* de
 	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
 	*completion = 0;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTransfer;
-#if 1 //jy
-	SchedulingNand();
-#endif
 }
 
 void __attribute__((optimize("O0"))) V2FReadPageTransferRawAsync(V2FMCRegisters* dev, int way, void* pageDataBuffer, unsigned int* completion)
@@ -158,9 +143,6 @@ void __attribute__((optimize("O0"))) V2FReadPageTransferRawAsync(V2FMCRegisters*
 #endif
 	*completion = 0;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTransferRaw;
-#if 1 //jy
-	SchedulingNand();
-#endif
 }
 
 
@@ -171,9 +153,6 @@ void __attribute__((optimize("O0"))) V2FProgramPageAsync(V2FMCRegisters* dev, in
 	*((volatile unsigned int*)&(dev->dataAddress)) = (unsigned int)pageDataBuffer;
 	*((volatile unsigned int*)&(dev->spareAddress)) = (unsigned int)spareDataBuffer;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ProgramPage;
-#if 1 //jy
-	SchedulingNand();
-#endif
 }
 
 void __attribute__((optimize("O0"))) V2FEraseBlockAsync(V2FMCRegisters* dev, int way, unsigned int rowAddress)
@@ -181,9 +160,6 @@ void __attribute__((optimize("O0"))) V2FEraseBlockAsync(V2FMCRegisters* dev, int
 	*((volatile unsigned int*)&(dev->waySelection)) = way;
 	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
 	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_BlockErase;
-#if 1 //jy
-	SchedulingNand();
-#endif
 }
 
 void __attribute__((optimize("O0"))) V2FStatusCheckAsync(V2FMCRegisters* dev, int way, unsigned int* statusReport)

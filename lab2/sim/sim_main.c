@@ -14,11 +14,12 @@
 struct sim sim;
 
 void init_sim_config() {
-	sim.config.nhosts = 0;
+	sim.config.nhosts = 1;
 	sim.config.parts_pcent = NULL;
 	sim.config.precond = 0;
 	sim.config.report = 0;
 	sim.config.output_dir = NULL;
+	sim.config.nops = 5000000;
 }
 
 void parse_listed_arg(char *optarg, int len, unsigned int *listed_arg) {
@@ -43,17 +44,17 @@ void argparser(int argc, char *argv[]) {
 	unsigned int arrarg[10];
 	unsigned int aarg;
 	struct option long_options[] = {
-		{"size", optional_argument, "", 's'},
-		{"nworkers", required_argument, 1, 'n'},
-		{"worker", optional_argument, "", 'w'}, // "pattern, rp, wp, nblks"
-		{"inst", required_argument, 1000000, 'i'}, 
-		{"condition", no_argument, "", 'c'},
-		{"outputdir", optional_argument, "", 'o'},
-		{"report", no_argument, "", 'r'},
+		{"size", optional_argument, NULL, 's'},
+		{"nworkers", required_argument, NULL, 'n'},
+		{"worker", optional_argument, NULL, 'w'}, // "pattern, rp, wp, nblks"
+		{"inst", required_argument, NULL, 'i'}, 
+		{"condition", no_argument, NULL, 'c'},
+		{"outputdir", optional_argument, NULL, 'o'},
+		{"report", no_argument, NULL, 'r'},
 		{0, 0, 0, 0}
 	};
 
-    while ((opt = getopt_long(argc, argv, "n:w:s:c:i:o:r", long_options, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:w:s:i:o:cr", long_options, &opt_idx)) != -1) {
         switch (opt) {
             case 'n':
 				aarg = atoi(optarg);
@@ -146,6 +147,9 @@ void flush_hist_to_file(int idx) {
 }
 
 void sim_cleanup() {
+	if (!sim.config.report)
+		return;
+
 	for (int i = 0; i < 2; i++) {
 		flush_hist_to_file(i);
 		fflush(sim.fp[i]);
@@ -239,11 +243,23 @@ void create_log_files () {
 }
 
 void init_sim(int argc, char *argv[]) {
+	sim.hosts = NULL;
 	init_sim_config();
 	argparser(argc, argv);
+	if (!sim.hosts) {
+		if (sim.config.nhosts != 1) {
+			fprintf(stderr, "Unset option: w\n");
+			exit(1);
+		}
+		unsigned int seq_write_16k[4] = {0, 0, 100, 4};
+		sim.hosts = (struct host *)calloc(sizeof(struct host), 1);
+		for (int i = 0; i < sim.config.nhosts; i++)
+			init_host_config(&(sim.hosts[i].config), seq_write_16k);
+	}
 	fill_host_config();
 
-	create_log_files();
+	if (sim.config.report)
+		create_log_files();
 	sim.last_report_time = 0;
 	sim.initial_report_time = 0;
 	sim.next_hid = 0;

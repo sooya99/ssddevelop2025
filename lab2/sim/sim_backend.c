@@ -12,7 +12,6 @@ void init_g_timer() {
 	TAILQ_INIT(&(g_timer.head));
 	g_timer.current_time = 0;
 	g_timer.ongoing = 0;
-	g_timer.starve = 0;
 }
 
 void init_nand() {
@@ -40,10 +39,6 @@ struct timer_pqueue_entry *task_create_raw(unsigned int ch, unsigned int way, un
 
 	task->trigger_time = g_timer.current_time + trigger_time;
 	task->ch = ch;
-#if 1 //jy debug
-	task->op = chCtlReg[ch]->cmdSelect;
-	chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
-#endif
 	task->way = way;
 	if (flag) {
 		task->completion = completion;
@@ -126,29 +121,27 @@ void SchedulingNand() {
 				break;
 			case V2FCommand_Reset:
 				way = chCtlReg[ch]->waySelection;
-				//task = task_create(ch, way, 1);
 				instant_task(ch, way);
-				//timer_put(task);
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 			case V2FCommand_SetFeatures:
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
-				//execmd++;
+				execmd++;
 				break;
 			case V2FCommand_GetFeatures:
 				completion.low = chCtlReg[ch]->completionAddress;
 				completion.high = chCtlReg[ch]->errorCountAddress;
 				instant_task_comp(completion.addr, 1);
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
-				//execmd++;
+				execmd++;
 				break;
 			case V2FCommand_ReadPageTrigger:
 				way = chCtlReg[ch]->waySelection;
 				// row = chCtlReg[ch]->rowAddress;
 				task = task_create(ch, way, 40);
 				timer_put(task);
-				//chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
+				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 			case V2FCommand_ReadPageTransfer:
@@ -157,12 +150,11 @@ void SchedulingNand() {
 				// pageDataBuffer = chCtlReg[ch]->dataAddress;
 				// spareDataBuffer = chCtlReg[ch]->spareAddress;
 				// errorInformation = chCtlReg[ch]->errorCountAddress;
-				// completion = (unsigned int *)(uintptr_t)(chCtlReg[ch]->completionAddress);
 				completion.low = chCtlReg[ch]->completionAddress;
 				completion.high = chCtlReg[ch]->errorCountAddress;
 				task = task_create_raw(ch, way, 5, completion.addr, 1);
 				timer_put(task);
-				//chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
+				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 			case V2FCommand_ProgramPage:
@@ -172,7 +164,7 @@ void SchedulingNand() {
 				// spareDataBuffer = chCtlReg[ch]->spareAddress;
 				task = task_create(ch, way, 100);
 				timer_put(task);
-				//chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
+				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 			case V2FCommand_BlockErase:
@@ -180,11 +172,10 @@ void SchedulingNand() {
 				// row = chCtlReg[ch]->rowAddress;
 				task = task_create(ch, way, 15000);
 				timer_put(task);
-				//chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
+				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 			case V2FCommand_StatusCheck:
-				// completion = (unsigned int *)(uintptr_t)(chCtlReg[ch]->completionAddress);
 				completion.low = chCtlReg[ch]->completionAddress;
 				completion.high = chCtlReg[ch]->errorCountAddress;
 				instant_task_comp(completion.addr, ((0x60) << 1 | 1));
@@ -194,29 +185,17 @@ void SchedulingNand() {
 			case V2FCommand_ReadPageTransferRaw:
 				way = chCtlReg[ch]->waySelection;
 				// pageDataBuffer = chCtlReg[ch]->dataAddress;
-				// completion = (unsigned int *)(uintptr_t)(chCtlReg[ch]->completionAddress);
 				completion.low = chCtlReg[ch]->completionAddress;
 				completion.high = chCtlReg[ch]->errorCountAddress;
 				task = task_create_raw(ch, way, 5, completion.addr, 1);
 				timer_put(task);
-				//chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
+				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
 				break;
 		}
 	}
 
-#if 0 //jy	
 	if (!execmd && !TAILQ_EMPTY(&(g_timer.head))) {
-			timer_warp();
-	}
-#else
-	if (g_timer.ongoing == 64) {
 		timer_warp();
-	} else if (!execmd && !TAILQ_EMPTY(&(g_timer.head))) {
-		if (++g_timer.starve == 512) {
-			timer_warp();
-			g_timer.starve = 0;
-		}
 	}
-#endif
 }

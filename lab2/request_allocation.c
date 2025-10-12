@@ -66,7 +66,11 @@ void InitReqPool()
 {
 	int chNo, wayNo, reqSlotTag;
 
+#if 1 //jy
 	reqPoolPtr = Addr2Mem(REQ_POOL, REQ_POOL_ADDR); //revise address /* jy */
+#else
+	reqPoolPtr = (P_REQ_POOL)REQ_POOL_ADDR; //revise address
+#endif
 
 	freeReqQ.headReq = 0;
 	freeReqQ.tailReq = AVAILABLE_OUNTSTANDING_REQ_COUNT - 1;

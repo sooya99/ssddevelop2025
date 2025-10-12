@@ -17,7 +17,6 @@ struct timer_pqueue_entry {
 	unsigned long long trigger_time;
 	unsigned int ch;
 	unsigned int way;
-	unsigned int op;
 	void *completion;
 	unsigned int flag;
 	TAILQ_ENTRY(timer_pqueue_entry) entry;
@@ -26,8 +25,7 @@ struct timer_pqueue_entry {
 
 struct timer_pqueue {
 	unsigned long long current_time;
-	unsigned int starve;
-	unsigned int ongoing; //jy
+	unsigned int ongoing;
 	TAILQ_HEAD(timer_pqueue_head, timer_pqueue_entry) head;
 };
 
