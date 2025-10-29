@@ -42,9 +42,13 @@ unsigned int get_next_blkaddr(struct host *host) {
 	unsigned int blkaddr = host->next_blkaddr;
 
 	if (config.pattern)
-		host->next_blkaddr = config.min_lba + (rand() % (config.max_lba - config.min_lba));
+		host->next_blkaddr = (config.min_lba + (rand() % (config.max_lba - config.min_lba))) / 4 * 4;
+		//host->next_blkaddr = config.min_lba + (rand() % (config.max_lba - config.min_lba));
 	else
 		host->next_blkaddr = ((blkaddr + config.nblks - config.min_lba) % (config.max_lba - config.min_lba)) + config.min_lba;
+
+	if (blkaddr % 4)
+		printf("UNALIGNED BLKADDR: %d\n", blkaddr);
 
 	return blkaddr;
 }

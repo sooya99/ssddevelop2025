@@ -5,8 +5,8 @@
 #include "sim_backend.h"
 #include "nsc_driver.h"
 
-volatile void *g_mem;
-volatile struct timer_pqueue g_timer;
+void *g_mem;
+struct timer_pqueue g_timer;
 
 void init_g_timer() {
 	TAILQ_INIT(&(g_timer.head));
@@ -139,7 +139,7 @@ void SchedulingNand() {
 			case V2FCommand_ReadPageTrigger:
 				way = chCtlReg[ch]->waySelection;
 				// row = chCtlReg[ch]->rowAddress;
-				task = task_create(ch, way, 40);
+				task = task_create(ch, way, 30);
 				timer_put(task);
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
@@ -152,7 +152,7 @@ void SchedulingNand() {
 				// errorInformation = chCtlReg[ch]->errorCountAddress;
 				completion.low = chCtlReg[ch]->completionAddress;
 				completion.high = chCtlReg[ch]->errorCountAddress;
-				task = task_create_raw(ch, way, 5, completion.addr, 1);
+				task = task_create_raw(ch, way, 300, completion.addr, 1);
 				timer_put(task);
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;
@@ -162,7 +162,7 @@ void SchedulingNand() {
 				// row = chCtlReg[ch]->rowAddress;
 				// pageDataBuffer = chCtlReg[ch]->dataAddress;
 				// spareDataBuffer = chCtlReg[ch]->spareAddress;
-				task = task_create(ch, way, 100);
+				task = task_create(ch, way, 650);
 				timer_put(task);
 				chCtlReg[ch]->cmdSelect = V2FCommand_NOP;
 				execmd++;

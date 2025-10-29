@@ -4,8 +4,8 @@
 #include <sys/queue.h>
 #include "ftl_config.h"
 
-extern volatile void *g_mem;
-extern volatile struct timer_pqueue g_timer;
+extern void *g_mem;
+extern struct timer_pqueue g_timer;
 
 /* Never put pointer variables into "type" */
 #define Addr2Mem(type, addr)		((type *)((char *)g_mem + (addr)))
