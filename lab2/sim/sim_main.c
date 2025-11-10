@@ -10,6 +10,9 @@
 #include "sim_backend.h"
 #include "address_translation.h"
 #include "request_transform.h"
+/* CSV/WAF saver implemented in sim_host.c */
+void save_gc_stats(const char *output_dir);
+
 
 struct sim sim;
 
@@ -150,7 +153,10 @@ void sim_cleanup() {
 	if (!sim.config.report)
 		return;
 
-	for (int i = 0; i < 2; i++) {
+	/* Step 4: write GC/WAF CSV before closing logs */
+save_gc_stats(sim.config.output_dir ? sim.config.output_dir : ".");
+
+for (int i = 0; i < 2; i++) {
 		flush_hist_to_file(i);
 		fflush(sim.fp[i]);
 		fclose(sim.fp[i]);
@@ -272,3 +278,4 @@ void init_sim(int argc, char *argv[]) {
 	init_hosts();
 	init_fe();
 }
+
