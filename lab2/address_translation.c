@@ -47,9 +47,39 @@
 
 #include <assert.h>
 #include "memory_map.h"
+
+/* ===== Cost-Benefit age tracking ===== */
+unsigned int g_cb_tick = 0;
+unsigned int g_last_update_tick[USER_DIES][USER_BLOCKS_PER_DIE];
 #include "printf.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include "sim_backend.h" /* jy */
+
+/* ===== FTL Summary counters (final report only) ===== */
+static uint64_t ts_total_writes = 0;
+static uint64_t ts_total_invalidates = 0;
+static uint64_t ts_total_erases = 0;
+
+/* from GC */
+extern void TsGcGetSummary(uint64_t *gc_selects, uint64_t *gc_valid_sum);
+
+static void TsDumpSummary(void)
+{
+    uint64_t gc_selects = 0, gc_valid_sum = 0;
+    TsGcGetSummary(&gc_selects, &gc_valid_sum);
+
+    printf("\n==== FTL Timestamp Summary ====\n");
+    printf("Writes (LSA->VSA)   : %llu\n", (unsigned long long)ts_total_writes);
+    printf("Invalidations (VSA) : %llu\n", (unsigned long long)ts_total_invalidates);
+    printf("Erases (blocks)     : %llu\n", (unsigned long long)ts_total_erases);
+    printf("GC victim selects   : %llu\n", (unsigned long long)gc_selects);
+    printf("GC valid copied sum : %llu\n", (unsigned long long)gc_valid_sum);
+    printf("==== End of Summary ====\n");
+    fflush(0);
+}
+
 
 P_LOGICAL_SLICE_MAP logicalSliceMapPtr;
 P_VIRTUAL_SLICE_MAP virtualSliceMapPtr;
@@ -97,6 +127,7 @@ void InitAddressMap()
 
 	InitSliceMap();
 	InitBlockDieMap();
+	atexit(TsDumpSummary);
 }
 
 void InitSliceMap()
@@ -242,7 +273,8 @@ void InitBlockMap()
 			virtualBlockMapPtr->block[dieNo][virtualBlockNo].currentPage = 0;
 			virtualBlockMapPtr->block[dieNo][virtualBlockNo].eraseCnt = 0;
 
-			if(virtualBlockMapPtr->block[dieNo][virtualBlockNo].bad)
+			
+			g_last_update_tick[dieNo][virtualBlockNo] = 0;if(virtualBlockMapPtr->block[dieNo][virtualBlockNo].bad)
 			{
 				virtualBlockMapPtr->block[dieNo][virtualBlockNo].prevBlock = BLOCK_NONE;
 				virtualBlockMapPtr->block[dieNo][virtualBlockNo].nextBlock = BLOCK_NONE;
@@ -666,6 +698,7 @@ unsigned int AddrTransWrite(unsigned int logicalSliceAddr)
 
 		logicalSliceMapPtr->logicalSlice[logicalSliceAddr].virtualSliceAddr = virtualSliceAddr;
 		virtualSliceMapPtr->virtualSlice[virtualSliceAddr].logicalSliceAddr = logicalSliceAddr;
+		ts_total_writes++;
 
 		return virtualSliceAddr;
 	}
@@ -710,6 +743,7 @@ unsigned int FindFreeVirtualSlice()
 
 	virtualSliceAddr = Vorg2VsaTranslation(dieNo, currentBlock, virtualBlockMapPtr->block[dieNo][currentBlock].currentPage);
 	virtualBlockMapPtr->block[dieNo][currentBlock].currentPage++;
+	g_last_update_tick[dieNo][currentBlock] = ++g_cb_tick;
 	sliceAllocationTargetDie = FindDieForFreeSliceAllocation();
 	dieNo = sliceAllocationTargetDie;
 	return virtualSliceAddr;
@@ -745,6 +779,7 @@ unsigned int FindFreeVirtualSliceForGc(unsigned int copyTargetDieNo, unsigned in
 
 	virtualSliceAddr = Vorg2VsaTranslation(dieNo, currentBlock, virtualBlockMapPtr->block[dieNo][currentBlock].currentPage);
 	virtualBlockMapPtr->block[dieNo][currentBlock].currentPage++;
+	g_last_update_tick[dieNo][currentBlock] = ++g_cb_tick;
 	return virtualSliceAddr;
 }
 
@@ -785,9 +820,11 @@ void InvalidateOldVsa(unsigned int logicalSliceAddr)
 		// unlink
 		SelectiveGetFromGcVictimList(dieNo, blockNo);
 		virtualBlockMapPtr->block[dieNo][blockNo].invalidSliceCnt++;
+		g_last_update_tick[dieNo][blockNo] = ++g_cb_tick;
 		logicalSliceMapPtr->logicalSlice[logicalSliceAddr].virtualSliceAddr = VSA_NONE;
 
 		PutToGcVictimList(dieNo, blockNo, virtualBlockMapPtr->block[dieNo][blockNo].invalidSliceCnt);
+		ts_total_invalidates++;
 	}
 
 }
@@ -813,8 +850,12 @@ void EraseBlock(unsigned int dieNo, unsigned int blockNo)
 	// block map indicated blockNo initialization
 	virtualBlockMapPtr->block[dieNo][blockNo].free = 1;
 	virtualBlockMapPtr->block[dieNo][blockNo].eraseCnt++;
+	ts_total_erases++;
 	virtualBlockMapPtr->block[dieNo][blockNo].invalidSliceCnt = 0;
 	virtualBlockMapPtr->block[dieNo][blockNo].currentPage = 0;
+
+	/* age update for cost-benefit */
+	g_last_update_tick[dieNo][blockNo] = ++g_cb_tick;
 
 	PutToFbList(dieNo, blockNo);
 
@@ -930,4 +971,5 @@ void UpdateBadBlockTableForGrownBadBlock(unsigned int tempBufAddr)
 	//update bad block tables in flash
 	SaveBadBlockTable(dieState, tempBbtBufAddr, tempBbtBufEntrySize);
 }
+
 
