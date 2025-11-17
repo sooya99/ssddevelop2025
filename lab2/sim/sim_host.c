@@ -10,6 +10,14 @@
 #include "sim_host.h"
 #include "sim_frontend.h"
 #include "sim_backend.h"
+/* === GC live totals for console & CSV === */
+#include <inttypes.h>
+extern uint64_t g_ts_gc_victim_selects;   // total GC count
+extern uint64_t g_ts_gc_valid_copied_sum; // total valid pages copied
+
+/* Forward decl for CSV/WAF saver (used by sim_main.c) */
+void save_gc_stats(const char *output_dir);
+
 
 void init_host_config(struct host_config *config, unsigned int *opt) {
 	config->min_lba = 0;
@@ -113,8 +121,8 @@ void update_and_print_bw() {
 			sim.hist_idx[1] = 0;
 		}
 
-		printf("[%llus]Host[%d]: Current BW[R %.2fMB/s, W %.2fMB/s] IOPS[R %.2f KIOPS, W %.2f KIOPS]\n", (ctime - sim.initial_report_time)/1000000, hid, rb, wb, ri, wi);
-	}
+		printf("[%llus]Host[%d]: Current BW[R %.2fMB/s, W %.2fMB/s] IOPS[R %.2f KIOPS, W %.2f KIOPS] GC[%u] Copies[%u]\n", (ctime - sim.initial_report_time)/1000000, hid, rb, wb, ri, wi, (unsigned)g_ts_gc_victim_selects, (unsigned)g_ts_gc_valid_copied_sum);
+}
 	sim.last_report_time = ctime;
 }
 
@@ -200,4 +208,32 @@ int SchedulingHost() {
 	return exe;
 }
 
+
+
+/* === Step 4/5: CSV output + WAF calculation === */
+void save_gc_stats(const char *output_dir) {
+    char filename[512];
+    FILE *fp;
+    unsigned long long total_gc = g_ts_gc_victim_selects;
+    unsigned long long valid_copied = g_ts_gc_valid_copied_sum;
+    unsigned long long host_writes = 0;
+    for (unsigned int i = 0; i < sim.config.nhosts; ++i) host_writes += sim.hosts[i].complete_blks[1]; /* write blks */
+    unsigned long long total_nand_writes = host_writes + valid_copied;
+    double avg_copies = (total_gc > 0) ? ((double)valid_copied / (double)total_gc) : 0.0;
+    double waf = (host_writes > 0) ? ((double)total_nand_writes / (double)host_writes) : 1.0;
+
+    snprintf(filename, sizeof(filename), "%s/gc_stats.csv", output_dir ? output_dir : ".");
+    fp = fopen(filename, "w");
+    if (!fp) { printf("[WARN] cannot open %s\n", filename); return; }
+    fprintf(fp, "total_gc,valid_pages_copied,avg_copies_per_gc,host_writes,total_nand_writes,waf\n");
+    fprintf(fp, "%llu,%llu,%.2f,%llu,%llu,%.3f\n",
+            total_gc, valid_copied, avg_copies, host_writes, total_nand_writes, waf);
+    fclose(fp);
+
+    printf("=== GC Statistics ===\n");
+    printf("Total GC Count: %llu\n", total_gc);
+    printf("Valid Pages Copied: %llu\n", valid_copied);
+    printf("Write Amplification Factor: %.3f\n", waf);
+    printf("GC statistics saved to %s\n", filename);
+}
 
